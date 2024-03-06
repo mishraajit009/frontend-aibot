@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
+import {ConnectionState }from './Socket/ConnectionState'
+import {ConnectionManager} from './Socket/ConnectionManager'
+import {Events} from './Socket/Events'
+import {MyForm} from './Socket/MyForm'
+import { socket } from '../socket';
 
 const SpeechToText = () => {
   const [isListening, setIsListening] = useState(false);
@@ -10,6 +15,42 @@ const SpeechToText = () => {
     resetTranscript,
     browserSupportsSpeechRecognition,
   } = useSpeechRecognition();
+
+  const [isConnected, setIsConnected] = useState(socket.connected);
+  const [fooEvents, setFooEvents] = useState([]);
+
+  useEffect(() => {
+    function onConnect() {
+      setIsConnected(true);
+    }
+
+    function onDisconnect() {
+      setIsConnected(false);
+    }
+
+    function onFooEvent(value) {
+      console.log("FOO EVENT VALUE",value);
+      setFooEvents(previous => [...previous, value]);
+    }
+    function onConnectError(error) {
+      console.error("Socket connection error:", error);
+      // Optionally add further actions here, like displaying an error message
+    }
+    socket.on('connect_error', onConnectError);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
+    socket.on('chat message', onFooEvent);
+
+    return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
+      socket.off('chat message', onFooEvent);
+      socket.off('connect_error', onConnectError);
+    };
+  }, []);
+
+
+
 
   useEffect(() => {
     if (!browserSupportsSpeechRecognition) {
@@ -35,6 +76,12 @@ const SpeechToText = () => {
         {isListening ? 'Stop Recording' : 'Start Recording'}
       </button>
       <p>{interimTranscript || transcript}</p>
+
+      <ConnectionState isConnected={ isConnected } />
+      <Events events={ fooEvents } />
+      <ConnectionManager />
+      <MyForm />
+
     </div>
   );
 };
